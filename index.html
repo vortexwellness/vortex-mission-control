@@ -23,7 +23,7 @@
   --r:10px;
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;overflow:hidden;user-select:none;-webkit-user-select:none}
+html,body{width:100%;height:100%;height:100dvh;background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;overflow:hidden;user-select:none;-webkit-user-select:none}
 
 /* ── STUDIO GRID ── */
 .studio{
@@ -36,7 +36,9 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
   grid-template-columns:repeat(6,1fr);
   grid-template-rows:repeat(4,1fr);
   gap:var(--gap);padding:var(--gap);
-  width:100vw;height:100vh;
+  width:100vw;
+  height:100vh;
+  height:100dvh;
 }
 [data-area=halo-x]{grid-area:halo-x}
 [data-area=tune]  {grid-area:tune}
@@ -193,6 +195,33 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
 .dur-btn{padding:9px 18px;border-radius:8px;background:#f0f0ea;border:1.5px solid rgba(0,0,0,.08);font-size:13px;font-weight:700;cursor:pointer;transition:.13s;color:var(--text)}
 .dur-btn:hover{background:#e8e8e0}
 .dur-btn.sel{background:rgba(154,112,32,.1);border-color:rgba(154,112,32,.4);color:var(--gold)}
+/* ── IPAD / SHORT SCREENS ── */
+@media screen and (max-height:900px){
+  :root{--gap:5px}
+  .tile{padding:10px 12px;gap:5px}
+  .tile-name{font-size:13px}
+  .tile-status{font-size:11px;padding:3px 10px}
+  .tile-sname{font-size:11px}
+  .tile-next{font-size:9px}
+  .tile-check{width:30px;height:30px;font-size:14px}
+  .tile-warn{font-size:22px}
+  .prog-track{height:34px}
+  .prog-time{font-size:15px}
+  .clk-logo{width:44px;height:44px}
+  .clk-time{font-size:22px}
+  .clk-date{font-size:9px}
+  .clk-tap{font-size:8px}
+}
+@media screen and (max-height:780px){
+  :root{--gap:4px}
+  .tile{padding:8px 10px;gap:4px}
+  .tile-name{font-size:12px}
+  .prog-track{height:28px}
+  .prog-time{font-size:13px}
+  .clk-logo{width:36px;height:36px}
+  .clk-time{font-size:19px}
+}
+
 ::-webkit-scrollbar{width:3px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:2px}

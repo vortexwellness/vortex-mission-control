@@ -98,7 +98,8 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
   gap:6px;position:relative;
   transition:background .15s,transform .13s;padding:14px;min-height:0;
 }
-.clk-panel{cursor:default !important}
+.clk-panel:hover{background:#f8f8f4;transform:scale(.978)}
+.clk-panel:active{transform:scale(.96)}
 .clk-logo{width:54px;height:54px;flex-shrink:0;object-fit:contain}
 .clk-time{font-size:26px;font-weight:900;letter-spacing:.04em;font-variant-numeric:tabular-nums;color:var(--text);line-height:1}
 .clk-date{font-size:10px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;text-align:center}
@@ -150,7 +151,7 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
 /* ── MODAL ── */
 .modal-overlay{position:fixed;inset:0;z-index:100;background:rgba(220,220,215,.82);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .18s ease}
 .modal-overlay.open{opacity:1;pointer-events:all}
-.modal{background:#fff;border:1.5px solid rgba(0,0,0,.1);border-radius:20px;padding:34px 40px 40px;width:440px;max-width:92vw;max-height:86vh;overflow-y:auto;position:relative;transform:translateY(20px) scale(.97);transition:all .2s ease;box-shadow:0 12px 40px rgba(0,0,0,.15)}
+.modal{background:#fff;border:1.5px solid rgba(0,0,0,.1);border-radius:20px;padding:34px 40px 40px;width:500px;max-width:94vw;max-height:92vh;overflow-y:auto;position:relative;transform:translateY(20px) scale(.97);transition:all .2s ease;box-shadow:0 12px 40px rgba(0,0,0,.15)}
 .modal-overlay.open .modal{transform:translateY(0) scale(1)}
 .mx{position:absolute;top:16px;right:18px;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:var(--muted);cursor:pointer;background:rgba(0,0,0,.06);transition:.14s}
 .mx:hover{background:rgba(0,0,0,.12);color:var(--text)}
@@ -182,7 +183,7 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
 .ses-opt-name{font-size:14px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px}
 .ses-opt-dur{font-size:12px;color:var(--muted);font-weight:600}
 /* Full session picker (Pods 1–3) */
-.m-picker{display:flex;flex-direction:column;gap:6px;margin-bottom:18px;max-height:200px;overflow-y:auto}
+.m-picker{display:flex;flex-direction:column;gap:6px;margin-bottom:18px}
 .pick-item{padding:11px 14px;border-radius:9px;background:#f8f8f6;border:1.5px solid rgba(0,0,0,.08);cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:.13s}
 .pick-item:hover{background:#f0f0ea;border-color:rgba(0,0,0,.15)}
 .pick-item.sel{background:rgba(0,0,0,.04);border-color:currentColor}
@@ -195,14 +196,49 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
 ::-webkit-scrollbar{width:3px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:2px}
+
+/* ── RESET DIALOG ── */
+.reset-overlay{
+  position:fixed;inset:0;z-index:110;
+  background:rgba(220,220,215,.88);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity .18s ease;
+}
+.reset-overlay.open{opacity:1;pointer-events:all}
+.reset-dialog{
+  background:#fff;border-radius:24px;
+  border:1.5px solid rgba(0,0,0,.1);
+  padding:40px 44px 44px;
+  width:360px;max-width:90vw;
+  text-align:center;
+  transform:translateY(16px) scale(.97);transition:all .2s ease;
+  box-shadow:0 16px 48px rgba(0,0,0,.14);
+}
+.reset-overlay.open .reset-dialog{transform:translateY(0) scale(1)}
+.reset-icon{font-size:36px;margin-bottom:14px;line-height:1}
+.reset-title{font-size:22px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--text);margin-bottom:8px}
+.reset-sub{font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:30px}
+.reset-btns{display:flex;gap:14px;justify-content:center}
+.reset-btn{
+  flex:1;max-width:130px;height:52px;border-radius:26px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  cursor:pointer;transition:transform .13s,box-shadow .13s;border:none;
+  box-shadow:0 3px 10px rgba(0,0,0,.12);
+}
+.reset-btn:hover{transform:scale(1.05);box-shadow:0 5px 16px rgba(0,0,0,.18)}
+.reset-btn:active{transform:scale(.95)}
+.reset-btn-yes{background:#dc2626;color:#fff}
+.reset-btn-cancel{background:rgba(0,0,0,.08);color:var(--text)}
 </style>
 </head>
 <body>
 
 <div class="studio" id="studio">
   <!-- Clock panel -->
-  <div class="clk-panel">
-    <img class="clk-logo" src="https://www.vortexwellness.ca/wp-content/uploads/2021/05/Vortex_GoldLogo_500px.png" alt="Vortex" />
+  <div class="clk-panel" onclick="openReset()">
+    <img class="clk-logo" src="https://www.vortexwellness.ca/wp-content/uploads/2025/03/emblemthicksvg.svg" alt="Vortex" />
     <div class="clk-time" id="clk-time">--:--</div>
     <div class="clk-date" id="clk-date">---</div>
   </div>
@@ -213,7 +249,7 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
 <div class="alerts-overlay" id="alerts-overlay">
   <div class="ao-hdr">
     <div class="ao-hdr-l">
-      <img class="clk-logo" src="https://www.vortexwellness.ca/wp-content/uploads/2021/05/Vortex_GoldLogo_500px.png" alt="Vortex" />
+      <img class="clk-logo" src="https://www.vortexwellness.ca/wp-content/uploads/2025/03/emblemthicksvg.svg" alt="Vortex" />
       <div>
         <div class="ao-brand">Vortex Wellness</div>
         <div class="ao-brand-sub">Mission Control</div>
@@ -244,6 +280,19 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
   </div>
 </div>
 
+<!-- RESET DIALOG -->
+<div class="reset-overlay" id="reset-overlay">
+  <div class="reset-dialog" id="reset-dialog">
+    <div class="reset-icon">⚠️</div>
+    <div class="reset-title" id="reset-title">Reset All</div>
+    <div class="reset-sub" id="reset-sub">This will mark every room as Ready and clear all active sessions.</div>
+    <div class="reset-btns">
+      <div class="reset-btn reset-btn-yes" id="reset-yes" onclick="resetStep()">Yes</div>
+      <div class="reset-btn reset-btn-cancel" onclick="closeReset()">Cancel</div>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL -->
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal">
@@ -257,11 +306,11 @@ html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-fam
 const RC = {
   'halo-x': '#16a34a',  // Green
   'tune':   '#ec4899',  // Pink
-  'halo-d': '#b45309',  // Amber/Gold
+  'halo-d': '#eab308',  // Golden Yellow
   'rl':     '#dc2626',  // Red
   'ir2':    '#ea580c',  // Orange
   'ir1':    '#ea580c',  // Orange
-  'pod4':   '#db2777',  // Pink (darker)
+  'pod4':   '#2563eb',  // Blue (matches Pods 1–3)
   'pod3':   '#2563eb',  // Blue
   'pod2':   '#2563eb',  // Blue
   'pod1':   '#2563eb',  // Blue
@@ -297,7 +346,7 @@ const ROOMS = [
   {id:'rl',     name:'RED LIGHT', area:'rl',     fixed:{type:'Red Light',      dur:12}},
   {id:'ir2',    name:'INFRARED 2',area:'ir2',    fixed:{type:'Infrared Sauna', dur:60}},
   {id:'ir1',    name:'INFRARED 1',area:'ir1',    fixed:{type:'Infrared Sauna', dur:60}},
-  {id:'pod4',   name:'POD 4',     area:'pod4',   fixed:{type:'SEQEX',          dur:45}},
+  {id:'pod4',   name:'POD 4',     area:'pod4',   sessions:['NuCalm','Compression','NuCalm + Compression','SEQEX','SEQEX + Compression']},
   {id:'pod3',   name:'POD 3',     area:'pod3',   sessions:['NuCalm','Compression','NuCalm + Compression']},
   {id:'pod2',   name:'POD 2',     area:'pod2',   sessions:['NuCalm','Compression','NuCalm + Compression']},
   {id:'pod1',   name:'POD 1',     area:'pod1',   sessions:['NuCalm','Compression','NuCalm + Compression']},
@@ -313,12 +362,12 @@ function initState(){
   S={
     'halo-x': {status:'session',  session:{type:'Halo Express',  start:n-18*60000, dur:35}, next:null},
     'tune':   {status:'session',  session:{type:'TUNE',           start:n-9*60000,  dur:15}, next:null},
-    'halo-d': {status:'ready',    session:null,                                              next:{type:'Halo Deluxe',dur:55}},
+    'halo-d': {status:'ready',    session:null,                                              next:null},
     'rl':     {status:'session',  session:{type:'Red Light',      start:n-3*60000,  dur:12}, next:null},
     'ir2':    {status:'session',  session:{type:'Infrared Sauna', start:n-57*60000, dur:60}, next:null},
     'ir1':    {status:'session',  session:{type:'Infrared Sauna', start:n-13*60000, dur:60}, next:null},
     'pod4':   {status:'session',  session:{type:'SEQEX',          start:n-25*60000, dur:45}, next:null},
-    'pod3':   {status:'ready',    session:null,                                              next:{type:'Compression',dur:45}},
+    'pod3':   {status:'ready',    session:null,                                              next:null},
     'pod2':   {status:'turnover', session:{type:'NuCalm',         start:n-45*60000, dur:40}, next:null},
     'pod1':   {status:'session',  session:{type:'NuCalm',         start:n-26*60000, dur:40}, next:null},
     'soma':   {status:'ready',    session:null,                                              next:null},
@@ -460,6 +509,39 @@ function updateClock(){
   document.getElementById('clk-date').textContent=dateStr;
   const aot=document.getElementById('ao-time');const aod=document.getElementById('ao-date');
   if(aot)aot.textContent=timeStr;if(aod)aod.textContent=dateStr;
+}
+
+// ── RESET DIALOG ──
+let resetConfirmed = false;
+function openReset(){
+  resetConfirmed = false;
+  document.getElementById('reset-title').textContent = 'Reset All';
+  document.getElementById('reset-sub').textContent = 'This will mark every room as Ready and clear all active sessions.';
+  document.getElementById('reset-yes').textContent = 'Yes';
+  document.getElementById('reset-overlay').classList.add('open');
+}
+function resetStep(){
+  if(!resetConfirmed){
+    // First yes — move to second confirmation
+    resetConfirmed = true;
+    document.getElementById('reset-title').textContent = 'Are You Sure?';
+    document.getElementById('reset-sub').textContent = 'All sessions, timers, and alerts will be wiped. This cannot be undone.';
+    document.getElementById('reset-yes').textContent = 'Yes, Reset';
+  } else {
+    // Second yes — do the reset
+    ROOMS.forEach(r=>{
+      S[r.id].status = 'ready';
+      S[r.id].session = null;
+    });
+    A = [];
+    closeReset();
+    renderStudio();
+    renderAlerts();
+  }
+}
+function closeReset(){
+  document.getElementById('reset-overlay').classList.remove('open');
+  resetConfirmed = false;
 }
 
 // ── MODAL ──

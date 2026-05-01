@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Vortex Mission Control</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#e4e4de;
+  --tile:#ffffff;
+  --border:rgba(0,0,0,.09);
+  --text:#111118;
+  --muted:#7a8090;
+  --dim:rgba(17,17,24,.45);
+  --gold:#9a7020;
+  --ready-c:#16a34a;
+  --ending-c:#d97706;
+  --turnover-c:#dc2626;
+  --gap:6px;
+  --r:10px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;overflow:hidden;user-select:none;-webkit-user-select:none}
+
+/* ── STUDIO GRID ── */
+.studio{
+  display:grid;
+  grid-template-areas:
+    "halo-x  ir2   ir2   ir1   ir1   clk"
+    "tune    ir2   ir2   ir1   ir1   clk"
+    "halo-d  pod4  pod3  pod2  pod1  soma"
+    "rl      pod4  pod3  pod2  pod1  soma";
+  grid-template-columns:repeat(6,1fr);
+  grid-template-rows:repeat(4,1fr);
+  gap:var(--gap);padding:var(--gap);
+  width:100vw;height:100vh;
+}
+[data-area=halo-x]{grid-area:halo-x}
+[data-area=tune]  {grid-area:tune}
+[data-area=halo-d]{grid-area:halo-d}
+[data-area=rl]    {grid-area:rl}
+[data-area=ir2]   {grid-area:ir2}
+[data-area=ir1]   {grid-area:ir1}
+[data-area=pod4]  {grid-area:pod4}
+[data-area=pod3]  {grid-area:pod3}
+[data-area=pod2]  {grid-area:pod2}
+[data-area=pod1]  {grid-area:pod1}
+[data-area=soma]  {grid-area:soma}
+[data-area=clk]   {grid-area:clk}
+
+/* ── ROOM TILE ── */
+.tile{
+  background:#fff;
+  border-radius:var(--r);
+  border:4px solid transparent;
+  cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:12px 14px;gap:6px;
+  position:relative;overflow:hidden;
+  transition:transform .13s ease,box-shadow .2s,background .2s;
+  min-height:0;min-width:0;
+}
+.tile:hover{transform:scale(.978);box-shadow:0 3px 14px rgba(0,0,0,.13)}
+.tile:active{transform:scale(.96)}
+.tile-ending  {animation:pa 2s ease-in-out infinite}
+.tile-turnover{animation:pt 1.5s ease-in-out infinite}
+
+@keyframes pa{0%,100%{box-shadow:0 0 0 0 rgba(217,119,6,0)}50%{box-shadow:0 0 0 6px rgba(217,119,6,.2)}}
+@keyframes pt{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,0)}50%{box-shadow:0 0 0 8px rgba(220,38,38,.25)}}
+
+.tile-name{font-size:15px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;text-align:center;line-height:1.1;color:var(--text)}
+.tile-status{font-size:12px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;padding:3px 12px;border-radius:20px}
+.s-ready   {color:var(--ready-c);   background:rgba(22,163,74,.12)}
+.s-session {color:var(--muted);     background:rgba(0,0,0,.06)}
+.s-ending  {color:var(--ending-c);  background:rgba(217,119,6,.13)}
+.s-turnover{color:var(--turnover-c);background:rgba(220,38,38,.12)}
+.tile-sname{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);text-align:center}
+.tile-next{font-size:10px;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;text-align:center}
+.tile-check{width:34px;height:34px;border-radius:50%;border:2.5px solid;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700}
+.tile-warn{font-size:26px;line-height:1;color:var(--turnover-c)}
+.alert-dot{position:absolute;top:8px;right:8px;width:8px;height:8px;border-radius:50%;background:var(--turnover-c);animation:bdot 1.4s ease-in-out infinite}
+@keyframes bdot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.5)}}
+
+/* ── PROGRESS BAR ── */
+.prog-wrap{width:100%;padding:0 2px}
+.prog-track{width:100%;height:40px;border-radius:20px;background:rgba(0,0,0,.08);overflow:hidden;position:relative}
+.prog-fill{height:100%;border-radius:20px;transition:width 1s linear}
+.prog-time{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;color:#fff;letter-spacing:.04em;font-variant-numeric:tabular-nums;text-shadow:0 1px 5px rgba(0,0,0,.35)}
+
+/* ── CLOCK PANEL ── */
+.clk-panel{
+  grid-area:clk;background:#fff;border-radius:var(--r);
+  border:1.5px solid var(--border);cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:6px;position:relative;
+  transition:background .15s,transform .13s;padding:14px;min-height:0;
+}
+.clk-panel{cursor:default !important}
+.clk-logo{width:54px;height:54px;flex-shrink:0;object-fit:contain}
+.clk-time{font-size:26px;font-weight:900;letter-spacing:.04em;font-variant-numeric:tabular-nums;color:var(--text);line-height:1}
+.clk-date{font-size:10px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;text-align:center}
+.clk-tap{font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-top:2px}
+.clk-alert-badge{
+  position:absolute;top:10px;right:10px;min-width:20px;height:20px;border-radius:10px;
+  background:var(--turnover-c);color:#fff;font-size:10px;font-weight:800;
+  display:none;align-items:center;justify-content:center;padding:0 5px;
+  animation:bdot 1.4s ease-in-out infinite;
+}
+.clk-alert-badge.show{display:flex}
+
+/* ── ALERTS OVERLAY ── */
+.alerts-overlay{
+  position:fixed;inset:0;z-index:90;
+  background:rgba(240,240,234,.97);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  opacity:0;pointer-events:none;transition:opacity .2s ease;
+  display:flex;flex-direction:column;padding:20px 24px 24px;overflow-y:auto;
+}
+.alerts-overlay.open{opacity:1;pointer-events:all}
+.ao-hdr{display:flex;align-items:center;justify-content:space-between;flex-shrink:0;margin-bottom:20px}
+.ao-hdr-l{display:flex;align-items:center;gap:12px}
+.ao-brand{font-size:12px;font-weight:800;letter-spacing:.22em;color:var(--gold);text-transform:uppercase;line-height:1.2}
+.ao-brand-sub{font-size:10px;font-weight:500;letter-spacing:.18em;color:var(--muted);text-transform:uppercase}
+.ao-hdr-r{display:flex;align-items:center;gap:20px}
+.ao-time{font-size:32px;font-weight:900;letter-spacing:.04em;font-variant-numeric:tabular-nums;color:var(--text)}
+.ao-close{width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,.07);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:var(--muted);cursor:pointer;transition:.14s}
+.ao-close:hover{background:rgba(0,0,0,.13);color:var(--text)}
+.ao-body{display:grid;grid-template-columns:1fr 1fr;gap:16px;flex:1;min-height:0}
+.ao-section{display:flex;flex-direction:column;gap:10px}
+.ao-sec-title{font-size:10px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);margin-bottom:2px;padding:0 2px}
+.alert-card{padding:12px 14px;border-radius:10px;border-left:4px solid;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.ac-urgent{border-color:var(--turnover-c)}.ac-warning{border-color:var(--ending-c)}.ac-info{border-color:var(--gold)}
+.ac-title{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px}
+.ac-urgent .ac-title{color:var(--turnover-c)}.ac-warning .ac-title{color:var(--ending-c)}.ac-info .ac-title{color:var(--gold)}
+.ac-body{font-size:11px;color:var(--muted);line-height:1.45;margin-bottom:6px}
+.ac-dismiss{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);cursor:pointer}
+.ac-dismiss:hover{color:var(--text)}
+.no-alerts{font-size:12px;color:var(--muted);padding:10px 2px}
+.up-card{padding:10px 13px;border-radius:9px;background:#fff;border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.06);display:flex;align-items:center;gap:12px}
+.up-time{font-size:11px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.up-info{flex:1}
+.up-sname{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+.up-room{font-size:10px;color:var(--muted)}
+.notes-ta{width:100%;background:#fff;border:1.5px solid var(--border);border-radius:9px;padding:10px 12px;color:var(--text);font-family:inherit;font-size:12px;resize:none;height:100px;outline:none;line-height:1.5;min-height:80px}
+.notes-ta:focus{border-color:rgba(154,112,32,.4)}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;z-index:100;background:rgba(220,220,215,.82);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .18s ease}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal{background:#fff;border:1.5px solid rgba(0,0,0,.1);border-radius:20px;padding:34px 40px 40px;width:440px;max-width:92vw;max-height:86vh;overflow-y:auto;position:relative;transform:translateY(20px) scale(.97);transition:all .2s ease;box-shadow:0 12px 40px rgba(0,0,0,.15)}
+.modal-overlay.open .modal{transform:translateY(0) scale(1)}
+.mx{position:absolute;top:16px;right:18px;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:var(--muted);cursor:pointer;background:rgba(0,0,0,.06);transition:.14s}
+.mx:hover{background:rgba(0,0,0,.12);color:var(--text)}
+.m-room{font-size:24px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;text-align:center;margin-bottom:2px}
+.m-lbl{font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);text-align:center;margin-bottom:3px}
+.m-sname{font-size:19px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;text-align:center;margin-bottom:20px;color:var(--text)}
+.m-prog-track{width:100%;height:34px;border-radius:17px;background:rgba(0,0,0,.07);overflow:hidden;position:relative;margin-bottom:7px}
+.m-prog-fill{height:100%;border-radius:17px;transition:width 1s linear}
+.m-time{font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);text-align:center;margin-bottom:26px}
+.m-time b{color:var(--text);font-size:22px;font-weight:900;font-variant-numeric:tabular-nums}
+.m-btns{display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap}
+.btn{width:82px;height:82px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#fff;border:none;cursor:pointer;transition:transform .14s,box-shadow .14s;gap:1px;line-height:1.1;box-shadow:0 3px 10px rgba(0,0,0,.15)}
+.btn:hover{transform:scale(1.08);box-shadow:0 5px 16px rgba(0,0,0,.22)}
+.btn:active{transform:scale(.93)}
+.btn.lg{width:96px;height:96px;font-size:13px}
+.btn.sm{width:66px;height:66px;font-size:10px}
+.btn-end{background:#d97706}
+.btn-add{background:#0891b2}
+.btn-yes{background:#16a34a}
+.btn-notyet{background:#d97706}
+.btn-cancel{background:#dc2626}
+.btn-ready{background:#16a34a}
+.m-confirm{font-size:16px;font-weight:700;text-align:center;line-height:1.45;margin-bottom:26px;color:var(--text)}
+/* Two-option session picker (Halo DLX) */
+.ses-choice{display:flex;gap:12px;justify-content:center;margin-bottom:24px}
+.ses-opt{flex:1;max-width:160px;padding:16px 12px;border-radius:12px;background:#f8f8f6;border:2px solid rgba(0,0,0,.08);cursor:pointer;text-align:center;transition:.13s}
+.ses-opt:hover{background:#f0f0ea;border-color:rgba(0,0,0,.15)}
+.ses-opt.sel{border-color:currentColor;background:rgba(0,0,0,.04)}
+.ses-opt-name{font-size:14px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px}
+.ses-opt-dur{font-size:12px;color:var(--muted);font-weight:600}
+/* Full session picker (Pods 1–3) */
+.m-picker{display:flex;flex-direction:column;gap:6px;margin-bottom:18px;max-height:200px;overflow-y:auto}
+.pick-item{padding:11px 14px;border-radius:9px;background:#f8f8f6;border:1.5px solid rgba(0,0,0,.08);cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:.13s}
+.pick-item:hover{background:#f0f0ea;border-color:rgba(0,0,0,.15)}
+.pick-item.sel{background:rgba(0,0,0,.04);border-color:currentColor}
+.pick-name{font-size:13px;font-weight:700}
+.pick-dur{font-size:11px;color:var(--muted)}
+.dur-row{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;margin-bottom:18px}
+.dur-btn{padding:9px 18px;border-radius:8px;background:#f0f0ea;border:1.5px solid rgba(0,0,0,.08);font-size:13px;font-weight:700;cursor:pointer;transition:.13s;color:var(--text)}
+.dur-btn:hover{background:#e8e8e0}
+.dur-btn.sel{background:rgba(154,112,32,.1);border-color:rgba(154,112,32,.4);color:var(--gold)}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:2px}
+</style>
+</head>
+<body>
+
+<div class="studio" id="studio">
+  <!-- Clock panel -->
+  <div class="clk-panel">
+    <img class="clk-logo" src="https://www.vortexwellness.ca/wp-content/uploads/2021/05/Vortex_GoldLogo_500px.png" alt="Vortex" />
+    <div class="clk-time" id="clk-time">--:--</div>
+    <div class="clk-date" id="clk-date">---</div>
+  </div>
+  <!-- Room tiles injected by JS -->
+</div>
+
+<!-- ALERTS OVERLAY -->
+<div class="alerts-overlay" id="alerts-overlay">
+  <div class="ao-hdr">
+    <div class="ao-hdr-l">
+      <img class="clk-logo" src="https://www.vortexwellness.ca/wp-content/uploads/2021/05/Vortex_GoldLogo_500px.png" alt="Vortex" />
+      <div>
+        <div class="ao-brand">Vortex Wellness</div>
+        <div class="ao-brand-sub">Mission Control</div>
+      </div>
+    </div>
+    <div class="ao-hdr-r">
+      <div>
+        <div class="ao-time" id="ao-time">--:--</div>
+        <div style="font-size:10px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;text-align:right" id="ao-date">---</div>
+      </div>
+      <div class="ao-close" onclick="closeAlerts()">✕</div>
+    </div>
+  </div>
+  <div class="ao-body">
+    <div class="ao-section">
+      <div class="ao-sec-title">Active Alerts</div>
+      <div id="ao-alerts-list"></div>
+      <div class="ao-sec-title" style="margin-top:8px">Upcoming (next 90 min)</div>
+      <div class="up-card"><div class="up-time">2:00 PM</div><div class="up-info"><div class="up-sname">Private Group</div><div class="up-room">HALO D + POD 3</div></div></div>
+      <div class="up-card"><div class="up-time">2:15 PM</div><div class="up-info"><div class="up-sname">NuCalm 40</div><div class="up-room">POD 1</div></div></div>
+      <div class="up-card"><div class="up-time">2:30 PM</div><div class="up-info"><div class="up-sname">Infrared Sauna</div><div class="up-room">INFRARED 2</div></div></div>
+      <div class="up-card"><div class="up-time">2:45 PM</div><div class="up-info"><div class="up-sname">Somadome</div><div class="up-room">SOMADOME</div></div></div>
+    </div>
+    <div class="ao-section">
+      <div class="ao-sec-title">Studio Note</div>
+      <textarea class="notes-ta" id="notes-ta" placeholder="Add a studio note…">Private group at 2:00 PM — ensure HALO D + POD 3 prepped and ready.</textarea>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="mx" id="mx">✕</div>
+    <div id="mc"></div>
+  </div>
+</div>
+
+<script>
+// ── ROOM SIGNATURE COLORS ──
+const RC = {
+  'halo-x': '#16a34a',  // Green
+  'tune':   '#ec4899',  // Pink
+  'halo-d': '#b45309',  // Amber/Gold
+  'rl':     '#dc2626',  // Red
+  'ir2':    '#ea580c',  // Orange
+  'ir1':    '#ea580c',  // Orange
+  'pod4':   '#db2777',  // Pink (darker)
+  'pod3':   '#2563eb',  // Blue
+  'pod2':   '#2563eb',  // Blue
+  'pod1':   '#2563eb',  // Blue
+  'soma':   '#7c3aed',  // Purple
+};
+
+// ── SESSION TYPES (durations updated) ──
+const ST = {
+  'Halo Express':                 {durs:[35]},
+  'Halo Express +ONE':            {durs:[35]},
+  'Halo Deluxe':                  {durs:[55]},
+  'Halo Deluxe +ONE':             {durs:[55]},
+  'Infrared Sauna':               {durs:[60]},
+  'Infrared +ONE':                {durs:[60]},
+  'TUNE':                         {durs:[15]},
+  'NuCalm':                       {durs:[20,30,40,50]},
+  'Compression':                  {durs:[20,30,45]},
+  'Somadome':                     {durs:[21]},
+  'SEQEX':                        {durs:[45]},
+  'NuCalm + Compression':         {durs:[50]},
+  'SEQEX + Compression':          {durs:[45]},
+  'SEQEX + Compression + NuCalm': {durs:[45]},
+  'Red Light':                    {durs:[12]},
+};
+
+// ── ROOMS ──
+// fixed → single session, no picker needed; just show Start
+// sessions → picker shown (2 items = two-button choice; 3+ = full list)
+const ROOMS = [
+  {id:'halo-x', name:'HALO X',    area:'halo-x', fixed:{type:'Halo Express',  dur:35}},
+  {id:'tune',   name:'TUNE',      area:'tune',   fixed:{type:'TUNE',           dur:15}},
+  {id:'halo-d', name:'HALO DLX',  area:'halo-d', sessions:['Halo Deluxe','Halo Express']},
+  {id:'rl',     name:'RED LIGHT', area:'rl',     fixed:{type:'Red Light',      dur:12}},
+  {id:'ir2',    name:'INFRARED 2',area:'ir2',    fixed:{type:'Infrared Sauna', dur:60}},
+  {id:'ir1',    name:'INFRARED 1',area:'ir1',    fixed:{type:'Infrared Sauna', dur:60}},
+  {id:'pod4',   name:'POD 4',     area:'pod4',   fixed:{type:'SEQEX',          dur:45}},
+  {id:'pod3',   name:'POD 3',     area:'pod3',   sessions:['NuCalm','Compression','NuCalm + Compression']},
+  {id:'pod2',   name:'POD 2',     area:'pod2',   sessions:['NuCalm','Compression','NuCalm + Compression']},
+  {id:'pod1',   name:'POD 1',     area:'pod1',   sessions:['NuCalm','Compression','NuCalm + Compression']},
+  {id:'soma',   name:'SOMADOME',  area:'soma',   fixed:{type:'Somadome',       dur:21}},
+];
+
+// ── STATE ──
+let S={}, A=[], prevSt={};
+let M={roomId:null,screen:null,picked:null,pickedDur:null};
+
+function initState(){
+  const n=Date.now();
+  S={
+    'halo-x': {status:'session',  session:{type:'Halo Express',  start:n-18*60000, dur:35}, next:null},
+    'tune':   {status:'session',  session:{type:'TUNE',           start:n-9*60000,  dur:15}, next:null},
+    'halo-d': {status:'ready',    session:null,                                              next:{type:'Halo Deluxe',dur:55}},
+    'rl':     {status:'session',  session:{type:'Red Light',      start:n-3*60000,  dur:12}, next:null},
+    'ir2':    {status:'session',  session:{type:'Infrared Sauna', start:n-57*60000, dur:60}, next:null},
+    'ir1':    {status:'session',  session:{type:'Infrared Sauna', start:n-13*60000, dur:60}, next:null},
+    'pod4':   {status:'session',  session:{type:'SEQEX',          start:n-25*60000, dur:45}, next:null},
+    'pod3':   {status:'ready',    session:null,                                              next:{type:'Compression',dur:45}},
+    'pod2':   {status:'turnover', session:{type:'NuCalm',         start:n-45*60000, dur:40}, next:null},
+    'pod1':   {status:'session',  session:{type:'NuCalm',         start:n-26*60000, dur:40}, next:null},
+    'soma':   {status:'ready',    session:null,                                              next:null},
+  };
+  A=[
+    {id:1,type:'urgent',  title:'POD 2',        body:'Session complete — turnover needed.',            room:'pod2'},
+    {id:2,type:'warning', title:'INFRARED 2',    body:'Ending soon — under 5 min remaining.',           room:'ir2'},
+    {id:3,type:'info',    title:'Group Booking', body:'Private group at 2:00 PM. Prep HALO D + POD 3.', room:null},
+  ];
+  ROOMS.forEach(r=>prevSt[r.id]=S[r.id].status);
+}
+
+// ── HELPERS ──
+function getRem(st){if(!st||!st.session)return null;return Math.max(0,st.session.dur*60-(Date.now()-st.session.start)/1000)}
+function getPct(st){if(!st||!st.session)return 0;return Math.min(1,(Date.now()-st.session.start)/1000/(st.session.dur*60))}
+function fmt(s){s=Math.max(0,Math.floor(s));return`${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`}
+function h2e(html){const t=document.createElement('template');t.innerHTML=html.trim();return t.content.firstChild}
+
+// ── TICK ──
+function tick(){
+  let changed=false;
+  Object.keys(S).forEach(id=>{
+    const st=S[id];
+    if(st.status==='session'||st.status==='ending'){
+      const rem=getRem(st);
+      const ns=rem<=0?'turnover':rem<=300?'ending':'session';
+      if(ns!==st.status){
+        if(ns==='turnover')pushAlert('urgent',ROOMS.find(r=>r.id===id)?.name,'Session complete — turnover needed.',id);
+        if(ns==='ending')  pushAlert('warning',ROOMS.find(r=>r.id===id)?.name,'Session ending in less than 5 minutes.',id);
+        st.status=ns;changed=true;
+      }
+    }
+    if(prevSt[id]!==st.status){prevSt[id]=st.status;changed=true;}
+  });
+  return changed;
+}
+function pushAlert(type,title,body,room){
+  if(A.some(a=>a.room===room&&a.type===type))return;
+  A.push({id:Date.now()+Math.random(),type,title,body,room});
+}
+
+// ── RENDER TILE ──
+function renderTile(room){
+  const st=S[room.id];const s=st.status;
+  const rc=RC[room.id]||'#2563eb';
+  const hasAlert=A.some(a=>a.room===room.id);
+
+  let cls='tile';
+  let bg='#ffffff';
+  if(s==='session') {bg=`${rc}0d`;}
+  if(s==='ending')  {cls+=' tile-ending'; bg=`${rc}16`;}
+  if(s==='turnover'){cls+=' tile-turnover';bg='#fff1f1';}
+
+  const tileStyle=`style="border-color:${rc};background:${bg};"`;
+
+  let inner='';
+  if(s==='ready'){
+    inner=`<div class="tile-name">${room.name}</div>
+    <div class="tile-status s-ready">Ready</div>
+    <div class="tile-check" style="border-color:${rc};color:${rc}">✓</div>
+    ${st.next?`<div class="tile-next">Next: ${st.next.type} ${st.next.dur}m</div>`:''}`;
+  } else if(s==='session'||s==='ending'){
+    const rem=getRem(st);const pct=getPct(st);
+    const badge=s==='ending'
+      ?`<div class="tile-status s-ending">Ending Soon</div>`
+      :`<div class="tile-status s-session">In Session</div>`;
+    inner=`<div class="tile-name">${room.name}</div>
+    ${badge}
+    <div class="tile-sname">${st.session.type} · ${st.session.dur}m</div>
+    <div class="prog-wrap">
+      <div class="prog-track">
+        <div class="prog-fill" style="width:${Math.max(0,(1-pct)*100).toFixed(1)}%;background:${rc};"></div>
+        <div class="prog-time">${rem!==null?fmt(rem):'—'}</div>
+      </div>
+    </div>`;
+  } else if(s==='turnover'){
+    inner=`<div class="tile-name">${room.name}</div>
+    <div class="tile-status s-turnover">Turnover</div>
+    <div class="tile-warn">⚠</div>`;
+  }
+
+  return `<div class="${cls}" ${tileStyle} data-area="${room.area}" data-id="${room.id}" onclick="openModal('${room.id}')">
+    ${hasAlert?'<div class="alert-dot"></div>':''}${inner}</div>`;
+}
+
+// ── RENDER STUDIO ──
+function renderStudio(){
+  const el=document.getElementById('studio');
+  el.querySelectorAll('[data-id]').forEach(e=>e.remove());
+  const frag=document.createDocumentFragment();
+  ROOMS.forEach(r=>frag.appendChild(h2e(renderTile(r))));
+  el.appendChild(frag);
+}
+
+// ── UPDATE TIMERS ──
+function updateTimers(){
+  ROOMS.forEach(room=>{
+    const st=S[room.id];
+    if(st.status!=='session'&&st.status!=='ending')return;
+    const el=document.querySelector(`[data-id="${room.id}"]`);if(!el)return;
+    const rem=getRem(st);const pct=getPct(st);
+    const fill=el.querySelector('.prog-fill');
+    const tEl=el.querySelector('.prog-time');
+    if(fill)fill.style.width=`${Math.max(0,(1-pct)*100).toFixed(1)}%`;
+    if(tEl)tEl.textContent=fmt(rem??0);
+  });
+}
+
+// ── ALERTS ──
+function renderAlerts(){
+  const list=document.getElementById('ao-alerts-list');
+  const badge=document.getElementById('clk-badge');
+  const urgent=A.filter(a=>a.type==='urgent'||a.type==='warning');
+  if(list){
+    list.innerHTML=A.length===0
+      ?`<div class="no-alerts">No active alerts</div>`
+      :A.map(a=>`<div class="alert-card ac-${a.type}">
+        <div class="ac-title">${a.title||''}</div>
+        <div class="ac-body">${a.body}</div>
+        <div class="ac-dismiss" onclick="dismissAlert(${a.id})">Dismiss ✕</div>
+      </div>`).join('');
+  }
+  if(badge){badge.textContent=urgent.length;badge.classList.toggle('show',urgent.length>0);}
+}
+function dismissAlert(id){A=A.filter(a=>a.id!==id);renderAlerts();}
+function openAlerts(){document.getElementById('alerts-overlay').classList.add('open')}
+function closeAlerts(){document.getElementById('alerts-overlay').classList.remove('open')}
+
+// ── CLOCK ──
+function updateClock(){
+  const d=new Date();
+  const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const h=d.getHours();const m=d.getMinutes().toString().padStart(2,'0');
+  const ampm=h>=12?'PM':'AM';const h12=h%12||12;
+  const timeStr=`${h12}:${m} ${ampm}`;
+  const dateStr=`${days[d.getDay()]} · ${months[d.getMonth()]} ${d.getDate()}`;
+  document.getElementById('clk-time').textContent=timeStr;
+  document.getElementById('clk-date').textContent=dateStr;
+  const aot=document.getElementById('ao-time');const aod=document.getElementById('ao-date');
+  if(aot)aot.textContent=timeStr;if(aod)aod.textContent=dateStr;
+}
+
+// ── MODAL ──
+function openModal(roomId){
+  const st=S[roomId];if(!st)return;
+  M.roomId=roomId;
+  const room=ROOMS.find(r=>r.id===roomId);
+  M.screen=st.status;
+
+  if(st.status==='ready'){
+    if(room.fixed){
+      M.picked=room.fixed.type;
+      M.pickedDur=room.fixed.dur;
+    } else {
+      M.picked=st.next?.type||room.sessions[0]||null;
+      M.pickedDur=st.next?.dur||(M.picked&&ST[M.picked]?.durs.length===1?ST[M.picked].durs[0]:null);
+    }
+  }
+  renderModal();
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal(){document.getElementById('modal-overlay').classList.remove('open');}
+
+function renderModal(){
+  const room=ROOMS.find(r=>r.id===M.roomId);
+  const st=S[M.roomId];
+  const rc=RC[M.roomId]||'#2563eb';
+  let html='';
+
+  if(M.screen==='ready'){
+    const isFixed=!!room.fixed;
+    const isTwoOpt=!isFixed&&room.sessions?.length===2;
+
+    if(isFixed){
+      // Single fixed session — just Start
+      html=`<div class="m-room" style="color:${rc}">${room.name}</div>
+      <div class="m-lbl" style="margin-bottom:4px">Session</div>
+      <div class="m-sname">${room.fixed.type} · ${room.fixed.dur} min</div>
+      <div class="m-btns">
+        <div class="btn lg" style="background:${rc}" onclick="doStartFixed()">Start</div>
+      </div>`;
+
+    } else if(isTwoOpt){
+      // Two options (Halo DLX)
+      const [o1,o2]=room.sessions;
+      const d1=ST[o1]?.durs[0]; const d2=ST[o2]?.durs[0];
+      html=`<div class="m-room" style="color:${rc}">${room.name}</div>
+      <div class="m-lbl" style="margin-bottom:16px">Select Session</div>
+      <div class="ses-choice">
+        <div class="ses-opt ${M.picked===o1?'sel':''}" style="color:${rc}" onclick="pickSes('${o1}')">
+          <div class="ses-opt-name">${o1}</div>
+          <div class="ses-opt-dur">${d1} min</div>
+        </div>
+        <div class="ses-opt ${M.picked===o2?'sel':''}" style="color:${rc}" onclick="pickSes('${o2}')">
+          <div class="ses-opt-name">${o2}</div>
+          <div class="ses-opt-dur">${d2} min</div>
+        </div>
+      </div>
+      <div class="m-btns">
+        <div class="btn lg" style="background:${rc}" onclick="confirmStart()">Start</div>
+      </div>`;
+
+    } else {
+      // Full picker (Pods 1–3)
+      const cfg=M.picked?ST[M.picked]:null;
+      const multi=cfg&&cfg.durs.length>1;
+      html=`<div class="m-room" style="color:${rc}">${room.name}</div>
+      <div class="m-lbl" style="margin-bottom:12px">Select Session</div>
+      <div class="m-picker">
+        ${room.sessions.map(s=>`<div class="pick-item ${M.picked===s?'sel':''}" style="color:${M.picked===s?rc:'inherit'};${M.picked===s?`border-color:${rc}`:''}" onclick="pickSes('${s}')">
+          <span class="pick-name" style="color:${rc}">${s}</span>
+          <span class="pick-dur">${(ST[s]?.durs||[]).join(' / ')} min</span>
+        </div>`).join('')}
+      </div>
+      ${multi?`<div class="m-lbl" style="margin-bottom:8px">Duration</div>
+      <div class="dur-row">${cfg.durs.map(d=>`<div class="dur-btn ${M.pickedDur===d?'sel':''}" onclick="pickDur(${d})">${d} min</div>`).join('')}</div>`:''}
+      <div class="m-btns">
+        <div class="btn" style="background:${rc}" onclick="confirmStart()">Start</div>
+      </div>`;
+    }
+
+  } else if(M.screen==='session'||M.screen==='ending'){
+    const rem=getRem(st);const pct=getPct(st);
+    const ext=st.session.extended||0;
+    html=`<div class="m-lbl">In Session</div>
+    <div class="m-room" style="color:${rc}">${room.name}</div>
+    <div class="m-lbl" style="margin-bottom:3px">Session</div>
+    <div class="m-sname">${st.session.type} · ${st.session.dur}m</div>
+    <div class="m-prog-track"><div class="m-prog-fill" id="mfill" style="width:${Math.max(0,(1-pct)*100).toFixed(1)}%;background:${rc};"></div></div>
+    <div class="m-time">Time left: <b id="mrem">${fmt(rem??0)}</b></div>
+    ${ext>0?`<div style="text-align:center;font-size:11px;color:var(--muted);margin-top:-18px;margin-bottom:18px">+${ext} min added</div>`:''}
+    <div class="m-btns">
+      <div class="btn btn-end" onclick="doEndEarly()">End<br>Early</div>
+      <div class="btn btn-add" onclick="doAdd1()">+1<br>min</div>
+      <div class="btn btn-cancel" onclick="doCancel()">Cancel</div>
+    </div>`;
+
+  } else if(M.screen==='turnover'){
+    html=`<div class="m-room" style="color:${rc}">${room.name}</div>
+    <div class="m-lbl" style="margin-bottom:24px">Session Complete</div>
+    <div class="m-btns"><div class="btn btn-ready lg" onclick="M.screen='confirm-ready';renderModal()">Ready</div></div>`;
+
+  } else if(M.screen==='confirm-ready'){
+    html=`<div class="m-room" style="color:${rc}">${room.name}</div>
+    ${st.next?`<div class="m-lbl">Next</div><div class="m-sname" style="margin-bottom:12px">${st.next.type} ${st.next.dur}m</div>`:'<div style="height:12px"></div>'}
+    <div class="m-confirm">Everything good to go?</div>
+    <div class="m-btns">
+      <div class="btn btn-yes lg" onclick="doMarkReady()">YES!</div>
+      <div class="btn btn-notyet" onclick="M.screen='turnover';renderModal()">Not<br>Yet</div>
+    </div>`;
+  }
+
+  document.getElementById('mc').innerHTML=html;
+}
+
+// ── MODAL ACTIONS ──
+function doStartFixed(){
+  const room=ROOMS.find(r=>r.id===M.roomId);
+  const st=S[M.roomId];
+  st.session={type:room.fixed.type,start:Date.now(),dur:room.fixed.dur,extended:0};
+  st.status='session';st.next=null;
+  closeModal();renderStudio();
+}
+function pickSes(type){
+  M.picked=type;
+  M.pickedDur=ST[type]?.durs.length===1?ST[type].durs[0]:null;
+  renderModal();
+}
+function pickDur(d){M.pickedDur=d;renderModal();}
+function confirmStart(){
+  if(!M.picked)return;
+  const dur=M.pickedDur||(ST[M.picked]?.durs[0]??30);
+  S[M.roomId].session={type:M.picked,start:Date.now(),dur,extended:0};
+  S[M.roomId].status='session';S[M.roomId].next=null;
+  closeModal();renderStudio();
+}
+function doEndEarly(){
+  const st=S[M.roomId];
+  if(st.session)st.session.dur=Math.max(1,(Date.now()-st.session.start)/60000);
+  S[M.roomId].status='turnover';
+  pushAlert('urgent',ROOMS.find(r=>r.id===M.roomId)?.name,'Session ended early — turnover needed.',M.roomId);
+  closeModal();renderStudio();renderAlerts();
+}
+function doAdd1(){
+  const st=S[M.roomId];
+  if(st.session){st.session.dur+=1;st.session.extended=(st.session.extended||0)+1;st.status='session';}
+  renderModal();
+}
+function doCancel(){S[M.roomId].status='ready';S[M.roomId].session=null;closeModal();renderStudio();}
+function doMarkReady(){
+  S[M.roomId].status='ready';S[M.roomId].session=null;
+  A=A.filter(a=>a.room!==M.roomId);
+  closeModal();renderStudio();renderAlerts();
+}
+
+// ── MODAL LIVE UPDATE ──
+function updateModalLive(){
+  if(!document.getElementById('modal-overlay').classList.contains('open'))return;
+  const st=S[M.roomId];if(!st)return;
+  if(M.screen==='session'||M.screen==='ending'){
+    const rem=getRem(st);const pct=getPct(st);
+    const r=document.getElementById('mrem');const f=document.getElementById('mfill');
+    if(r)r.textContent=fmt(rem??0);
+    if(f)f.style.width=`${Math.max(0,(1-pct)*100).toFixed(1)}%`;
+    if(st.status!==M.screen){M.screen=st.status;renderModal();}
+  }
+}
+
+// ── INIT ──
+initState();renderStudio();renderAlerts();updateClock();
+
+document.getElementById('mx').addEventListener('click',closeModal);
+document.getElementById('modal-overlay').addEventListener('click',e=>{
+  if(e.target===document.getElementById('modal-overlay'))closeModal();
+});
+
+setInterval(()=>{
+  const changed=tick();
+  updateClock();
+  if(changed){renderStudio();renderAlerts();}
+  else updateTimers();
+  updateModalLive();
+},1000);
+</script>
+</body>
+</html>

@@ -330,7 +330,13 @@ html,body{width:100%;height:100%;height:100dvh;background:var(--bg);color:var(--
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+// ── SUPABASE ──
+const SUPA_URL = 'https://zfypqnppgjcqujbevwog.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpmeXBxbnBwZ2pjcXVqYmV2d29nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3NDk2ODcsImV4cCI6MjA5MzMyNTY4N30.i0-LZgeYVj5xe55tRNMyVsVkHpSpqBK7EJeez7-Qb28';
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
 // ── ROOM SIGNATURE COLORS ──
 const RC = {
   'halo-x': '#16a34a',  // Green
@@ -386,27 +392,74 @@ const ROOMS = [
 let S={}, A=[], prevSt={};
 let M={roomId:null,screen:null,picked:null,pickedDur:null};
 
-function initState(){
-  const n=Date.now();
-  S={
-    'halo-x': {status:'session',  session:{type:'Halo Express',  start:n-18*60000, dur:35}, next:null},
-    'tune':   {status:'session',  session:{type:'TUNE',           start:n-9*60000,  dur:15}, next:null},
-    'halo-d': {status:'ready',    session:null,                                              next:null},
-    'rl':     {status:'session',  session:{type:'Red Light',      start:n-3*60000,  dur:12}, next:null},
-    'ir2':    {status:'session',  session:{type:'Infrared Sauna', start:n-57*60000, dur:60}, next:null},
-    'ir1':    {status:'session',  session:{type:'Infrared Sauna', start:n-13*60000, dur:60}, next:null},
-    'pod4':   {status:'session',  session:{type:'SEQEX',          start:n-25*60000, dur:45}, next:null},
-    'pod3':   {status:'ready',    session:null,                                              next:null},
-    'pod2':   {status:'turnover', session:{type:'NuCalm',         start:n-45*60000, dur:40}, next:null},
-    'pod1':   {status:'session',  session:{type:'NuCalm',         start:n-26*60000, dur:40}, next:null},
-    'soma':   {status:'ready',    session:null,                                              next:null},
+// Convert a DB row into the local state format
+function rowToState(row){
+  if(row.status==='ready'||row.status==='turnover'||!row.session_type){
+    return {status:row.status, session:null, next:null};
+  }
+  return {
+    status: row.status,
+    next: null,
+    session: {
+      type: row.session_type,
+      start: new Date(row.session_start).getTime(),
+      dur: row.session_dur,
+      extended: row.session_extended||0
+    }
   };
-  A=[
-    {id:1,type:'urgent',  title:'POD 2',        body:'Session complete — turnover needed.',            room:'pod2'},
-    {id:2,type:'warning', title:'INFRARED 2',    body:'Ending soon — under 5 min remaining.',           room:'ir2'},
-    {id:3,type:'info',    title:'Group Booking', body:'Private group at 2:00 PM. Prep HALO D + POD 3.', room:null},
-  ];
-  ROOMS.forEach(r=>prevSt[r.id]=S[r.id].status);
+}
+
+// Load all room states from Supabase
+async function loadState(){
+  const {data,error} = await sb.from('room_states').select('*');
+  if(error){console.error('Load error',error);return;}
+  ROOMS.forEach(r=>{
+    const row=data.find(d=>d.room_id===r.id);
+    S[r.id] = row ? rowToState(row) : {status:'ready',session:null,next:null};
+    // Recalculate derived ending state
+    if(S[r.id].status==='session'){
+      const rem=getRem(S[r.id]);
+      if(rem!==null&&rem<=300) S[r.id].status='ending';
+    }
+    prevSt[r.id]=S[r.id].status;
+  });
+  A=[];
+}
+
+// Write a single room's state to Supabase
+async function saveRoom(roomId){
+  const st=S[roomId];
+  const dbStatus = (st.status==='ending') ? 'session' : st.status;
+  const {error}=await sb.from('room_states').upsert({
+    room_id: roomId,
+    status: dbStatus,
+    session_type: st.session?.type||null,
+    session_start: st.session?.start ? new Date(st.session.start).toISOString() : null,
+    session_dur: st.session?.dur||null,
+    session_extended: st.session?.extended||0,
+  },{onConflict:'room_id'});
+  if(error)console.error('Save error',error);
+}
+
+// Subscribe to real-time updates from other devices
+function subscribeRealtime(){
+  sb.channel('room_states')
+    .on('postgres_changes',{event:'*',schema:'public',table:'room_states'},payload=>{
+      const row=payload.new;
+      if(!row||!row.room_id)return;
+      S[row.room_id]=rowToState(row);
+      if(S[row.room_id].status==='session'){
+        const rem=getRem(S[row.room_id]);
+        if(rem!==null&&rem<=300) S[row.room_id].status='ending';
+      }
+      prevSt[row.room_id]=S[row.room_id].status;
+      renderStudio();renderAlerts();
+      // Update modal if open for this room
+      if(M.roomId===row.room_id&&document.getElementById('modal-overlay').classList.contains('open')){
+        M.screen=S[row.room_id].status;renderModal();
+      }
+    })
+    .subscribe();
 }
 
 // ── HELPERS ──
@@ -424,8 +477,8 @@ function tick(){
       const rem=getRem(st);
       const ns=rem<=0?'turnover':rem<=300?'ending':'session';
       if(ns!==st.status){
-        if(ns==='turnover')pushAlert('urgent',ROOMS.find(r=>r.id===id)?.name,'Session complete — turnover needed.',id);
-        if(ns==='ending')  pushAlert('warning',ROOMS.find(r=>r.id===id)?.name,'Session ending in less than 5 minutes.',id);
+        if(ns==='turnover'){pushAlert('urgent',ROOMS.find(r=>r.id===id)?.name,'Session complete — turnover needed.',id);saveRoom(id);}
+        if(ns==='ending')   pushAlert('warning',ROOMS.find(r=>r.id===id)?.name,'Session ending in less than 5 minutes.',id);
         st.status=ns;changed=true;
       }
     }
@@ -561,6 +614,7 @@ function resetStep(){
     ROOMS.forEach(r=>{
       S[r.id].status = 'ready';
       S[r.id].session = null;
+      saveRoom(r.id);
     });
     A = [];
     closeReset();
@@ -692,7 +746,7 @@ function doStartFixed(){
   const st=S[M.roomId];
   st.session={type:room.fixed.type,start:Date.now(),dur:room.fixed.dur,extended:0};
   st.status='session';st.next=null;
-  closeModal();renderStudio();
+  saveRoom(M.roomId);closeModal();renderStudio();
 }
 function pickSes(type){
   M.picked=type;
@@ -705,25 +759,28 @@ function confirmStart(){
   const dur=M.pickedDur||(ST[M.picked]?.durs[0]??30);
   S[M.roomId].session={type:M.picked,start:Date.now(),dur,extended:0};
   S[M.roomId].status='session';S[M.roomId].next=null;
-  closeModal();renderStudio();
+  saveRoom(M.roomId);closeModal();renderStudio();
 }
 function doEndEarly(){
   const st=S[M.roomId];
   if(st.session)st.session.dur=Math.max(1,(Date.now()-st.session.start)/60000);
   S[M.roomId].status='turnover';
   pushAlert('urgent',ROOMS.find(r=>r.id===M.roomId)?.name,'Session ended early — turnover needed.',M.roomId);
-  closeModal();renderStudio();renderAlerts();
+  saveRoom(M.roomId);closeModal();renderStudio();renderAlerts();
 }
 function doAdd1(){
   const st=S[M.roomId];
   if(st.session){st.session.dur+=1;st.session.extended=(st.session.extended||0)+1;st.status='session';}
-  renderModal();
+  saveRoom(M.roomId);renderModal();
 }
-function doCancel(){S[M.roomId].status='ready';S[M.roomId].session=null;closeModal();renderStudio();}
+function doCancel(){
+  S[M.roomId].status='ready';S[M.roomId].session=null;
+  saveRoom(M.roomId);closeModal();renderStudio();
+}
 function doMarkReady(){
   S[M.roomId].status='ready';S[M.roomId].session=null;
   A=A.filter(a=>a.room!==M.roomId);
-  closeModal();renderStudio();renderAlerts();
+  saveRoom(M.roomId);closeModal();renderStudio();renderAlerts();
 }
 
 // ── MODAL LIVE UPDATE ──
@@ -740,20 +797,28 @@ function updateModalLive(){
 }
 
 // ── INIT ──
-initState();renderStudio();renderAlerts();updateClock();
-
 document.getElementById('mx').addEventListener('click',closeModal);
 document.getElementById('modal-overlay').addEventListener('click',e=>{
   if(e.target===document.getElementById('modal-overlay'))closeModal();
 });
 
-setInterval(()=>{
-  const changed=tick();
-  updateClock();
-  if(changed){renderStudio();renderAlerts();}
-  else updateTimers();
-  updateModalLive();
-},1000);
+(async()=>{
+  // Show loading state
+  document.getElementById('studio').style.opacity='0.4';
+  await loadState();
+  subscribeRealtime();
+  renderStudio();renderAlerts();updateClock();
+  document.getElementById('studio').style.opacity='1';
+  document.getElementById('studio').style.transition='opacity .4s ease';
+
+  setInterval(()=>{
+    const changed=tick();
+    updateClock();
+    if(changed){renderStudio();renderAlerts();}
+    else updateTimers();
+    updateModalLive();
+  },1000);
+})();
 </script>
 </body>
 </html>
